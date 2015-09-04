@@ -11,4 +11,5 @@ before_install:
   - env
   - git clone --depth=1 git@github.com:snowballstem/snowball-data.git
 script:
+  - env
   - make && make check STEMMING_DATA=snowball-data
