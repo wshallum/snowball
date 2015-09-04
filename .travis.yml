@@ -3,13 +3,13 @@ sudo: false
 compiler:
   - clang
   - gcc
-# FIXME: It would be nice to try to check out a branch of the same name from
-# the snowball-data repo so that PRs which change both snowball and
-# snowball-data can be CI tested, but travis sets us up with a detached HEAD so
-# it seems to be non-trivial to find the name of the branch we are testing.
+# Try to check out a branch of the same name from the snowball-data repo
+# sibling of this snowball repo, so that PRs requiring changes to both can be
+# CI tested easily.
+#
+# If that fails, just clone the standard snowball-data repo with the same
+# branch name, falling back to the default branch.
 before_install:
-  - env
-  - git clone --depth=1 git@github.com:snowballstem/snowball-data.git
+  - git clone --depth=1 -b "$TRAVIS_BRANCH" https://github.com:"${TRAVIS_REPO_SLUG%%/*}"/snowball-data.git || git clone --depth=1 -b "$TRAVIS_BRANCH" https://github.com/snowballstem/snowball-data.git || git clone --depth=1 https://github.com/snowballstem/snowball-data.git
 script:
-  - env
   - make && make check STEMMING_DATA=snowball-data
