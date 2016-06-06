@@ -1,0 +1,167 @@
+// based on:
+// A Study of Stemming Effects on Information Retrieval in Bahasa Indonesia,
+// Fadillah Z Tala.
+// http://www.illc.uva.nl/Publications/ResearchReports/MoL-2003-02.text.pdf
+
+integers ( n_syllables )
+booleans (
+    prefix_meng
+    prefix_peng
+    prefix_di
+    prefix_ter
+    prefix_ke
+    prefix_ber
+    prefix_per
+)
+
+routines (
+    count_syllables
+    init_prefixes
+    strip_particle
+    strip_possessive
+    strip_first_order_prefix
+    strip_second_order_prefix
+    strip_suffix
+    stop_if_short
+)
+
+externals ( stem )
+
+groupings ( v )
+
+stringescapes {}
+
+define v        'aeiou'
+
+define count_syllables as (
+    do (
+        $n_syllables = 0
+        repeat (
+            (v $n_syllables += 1) or (hop 1)
+        )
+    )
+)
+
+backwardmode (
+    define strip_particle as (
+        [substring] among (
+            'kah' (delete $n_syllables -= 1)
+            'lah' (delete $n_syllables -= 1)
+            'pun' (delete $n_syllables -= 1)
+        )
+    )
+
+    define strip_possessive as (
+        [substring] among (
+            'ku'  (delete $n_syllables -= 1)
+            'mu'  (delete $n_syllables -= 1)
+            'nya' (delete $n_syllables -= 1)
+        )
+    )
+
+    define strip_suffix as (
+        (['kan'] (not (prefix_ke or prefix_peng or prefix_per))
+            delete $n_syllables -= 1) or
+        ([ 'an'] (not (prefix_di or prefix_meng or prefix_ter))
+            delete $n_syllables -= 1) or
+        (  'si') /* keep this */ or
+        ([  'i'] (not (prefix_ber or prefix_ke or prefix_peng))
+            delete $n_syllables -= 1)
+    )
+)
+
+define strip_first_order_prefix as (
+    (['me'
+        (
+            ('ng']   delete) or
+            ('ny'] v <- 's') or
+            ('n']    delete) or
+            ('m']  v <- 'p') or
+            ('m']    delete) or
+            (]       delete)
+            )
+            $n_syllables -= 1
+            set prefix_meng
+    ) or
+    (['pe'
+        (
+            ('ng']   delete) or
+            ('ny'] v <- 's') or
+            ('n']    delete) or
+            ('m']  v <- 'p') or
+            ('m']    delete)
+        )
+        $n_syllables -= 1
+        set prefix_peng
+    ) or
+    (
+        (
+            (['di']  delete set prefix_di) or
+            (['ter'] delete set prefix_ter) or
+            (['ke']  delete set prefix_ke)
+        )
+        $n_syllables -= 1
+    )
+)
+
+define strip_second_order_prefix as (
+    (['be'
+        (
+            ('lajar'] <- 'ajar') or
+            (    'r'] delete) or
+            (       ] non-v 'er' delete)
+        )
+        set prefix_ber
+        $n_syllables -= 1
+    ) or
+    (['pe'
+        (
+            ('lajar'] <- 'ajar') or
+            (    'r'] delete) or
+            (       ] delete)
+        )
+        set prefix_per
+        $n_syllables -= 1
+    )
+)
+
+define stop_if_short as (
+    $n_syllables > 2
+)
+
+define init_prefixes as (
+    unset prefix_meng
+    unset prefix_peng
+    unset prefix_di
+    unset prefix_ter
+    unset prefix_ke
+    unset prefix_ber
+    unset prefix_per
+)
+
+define stem as (
+    count_syllables
+    stop_if_short
+    backwards ( try strip_particle )
+    stop_if_short
+    backwards ( try strip_possessive )
+    init_prefixes
+    (
+        stop_if_short
+        (
+            strip_first_order_prefix  // or fail and try strip second_order
+            do ( // must not fail or second branch will be tried
+                stop_if_short
+                backwards ( strip_suffix ) // stop here if fails
+                stop_if_short
+                strip_second_order_prefix
+            )
+        )
+        or
+        (
+            try strip_second_order_prefix
+            stop_if_short
+            backwards ( strip_suffix )
+        )
+    )
+)
